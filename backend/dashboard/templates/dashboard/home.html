@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Energi</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+        h1 {
+            text-align: center;
+        }
+        .chart-container {
+            width: 80%;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>📊 Dashboard Monitoring & Prediksi Daya Listrik</h1>
+    <div class="chart-container">
+        <canvas id="powerChart"></canvas>
+    </div>
+
+    <script>
+        // Konfigurasi awal chart
+        const ctx = document.getElementById('powerChart').getContext('2d');
+        const powerChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [], // timestamp
+                datasets: [
+                    {
+                        label: 'Daya Aktual (W)',
+                        borderColor: 'blue',
+                        data: [],
+                        fill: false,
+                    },
+                    {
+                        label: 'Prediksi (W)',
+                        borderColor: 'red',
+                        borderDash: [5, 5],
+                        data: [],
+                        fill: false,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { title: { display: true, text: 'Waktu' } },
+                    y: { title: { display: true, text: 'Daya (W)' }, beginAtZero: true }
+                }
+            }
+        });
+
+        // Fungsi ambil data dari API monitoring
+        async function fetchMonitoring() {
+            const res = await fetch("/monitoring/api/");
+            return await res.json();
+        }
+
+        // Fungsi ambil data dari API prediction
+        async function fetchPrediction() {
+            const res = await fetch("/prediction/run/");
+            return await res.json();
+        }
+
+        // Update chart secara periodik
+        async function updateChart() {
+            const monitoring = await fetchMonitoring();
+            const prediction = await fetchPrediction();
+
+            // Tambahkan label waktu
+            powerChart.data.labels.push(new Date(monitoring.timestamp).toLocaleTimeString());
+
+            // Tambahkan data monitoring & prediksi
+            powerChart.data.datasets[0].data.push(monitoring.power);
+            powerChart.data.datasets[1].data.push(prediction.predicted_power);
+
+            // Batasi jumlah data agar tidak terlalu panjang
+            if (powerChart.data.labels.length > 10) {
+                powerChart.data.labels.shift();
+                powerChart.data.datasets[0].data.shift();
+                powerChart.data.datasets[1].data.shift();
+            }
+
+            powerChart.update();
+        }
+
+        // Refresh tiap 3 detik
+        setInterval(updateChart, 3000);
+    </script>
+</body>
+</html>
