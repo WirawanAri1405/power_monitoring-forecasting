@@ -1,52 +1,31 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+// frontend/src/App.tsx
 
-function App() {
-  const [count, setCount] = useState(0)
+import React from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import Navbar from './components/Navbar'; // Path ini tetap sama
+import LandingPage from './pages/LandingPage'; // Path diubah
+import LoginPage from './pages/LoginPage'; // Path diubah
+import MonitoringPage from './pages/MonitoringPage'; // Path diubah
+import PredictionPage from './pages/PredictionPage'; // Path diubah
+import DashboardPage from './pages/DashboardPage'; // Path diubah
+import './App.css';
 
+const App: React.FC = () => {
   return (
-    <>
+    <Router>
       <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+        <Navbar />
+        <hr />
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/monitoring" element={<MonitoringPage />} />
+          <Route path="/prediction" element={<PredictionPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+        </Routes>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 text-gray-800">
-      <h1 className="text-4xl font-bold text-blue-600 mb-4">
-        Hello Tailwind + React + TS 🚀
-      </h1>
-      <p className="text-lg mb-6">
-        Kalau kamu lihat teks ini berwarna biru dan layout rapi, berarti Tailwind sudah jalan.
-      </p>
+    </Router>
+  );
+};
 
-      <div className="flex gap-4">
-        <button className="px-4 py-2 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700">
-          Primary
-        </button>
-        <button className="px-4 py-2 rounded-lg font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300">
-          Secondary
-        </button>
-      </div>
-    </div>
-    </>
-  )
-}
-
-export default App
+export default App;

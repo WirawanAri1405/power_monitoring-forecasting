@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'prediction',
     'dashboard',
     'mqtt_app',
+    'authentication',
 
      # 3rd party apps
     'corsheaders',
