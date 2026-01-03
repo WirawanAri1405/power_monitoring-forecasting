@@ -1,47 +1,156 @@
 from django.http import JsonResponse
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from pymongo import MongoClient
 import datetime
+from .models import Device
 
-# Fungsi ini sekarang akan mengambil data terbaru dari MongoDB
+def get_db_collection():
+    """Helper to get MongoDB collection"""
+    client = MongoClient("mongodb://localhost:27017/")
+    db = client["iot_db"]
+    return db["pzem_data1"]
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def monitoring_api(request):
+    """
+    Get latest monitoring data point for a specific device
+    
+    Query Parameters:
+        device_id (required): Device ID to get data for
+    """
     try:
-        # Koneksi ke MongoDB
-        client = MongoClient("mongodb://localhost:27017/")
-        db = client["iot_db"]
-        collection = db["pzem_data1"]
-
-        # Ambil dokumen terbaru berdasarkan timestamp
-        latest_data = collection.find_one(sort=[("timestamp", -1)])
+        device_id = request.GET.get('device_id')
+        
+        if not device_id:
+            return JsonResponse({
+                "error": "device_id parameter is required"
+            }, status=400)
+        
+        # Validate device ownership
+        try:
+            device = Device.objects.get(device_id=device_id, user=request.user)
+        except Device.DoesNotExist:
+            return JsonResponse({
+                "error": "Device not found or you do not have permission to access it"
+            }, status=403)
+        
+        collection = get_db_collection()
+        latest_data = collection.find_one(
+            {"device_id": device_id},
+            sort=[("timestamp", -1)]
+        )
 
         if latest_data:
-            # Hapus _id karena tidak bisa di-serialize ke JSON secara default
             latest_data.pop('_id', None)
-            # Pastikan timestamp dalam format string
-            latest_data['timestamp'] = latest_data.get('timestamp', datetime.datetime.now()).isoformat()
+            ts = latest_data.get('timestamp')
+            if isinstance(ts, datetime.datetime):
+                latest_data['timestamp'] = ts.isoformat()
             
-            # Ganti nama field agar sesuai dengan yang diharapkan frontend
             data = {
-                "timestamp": latest_data['timestamp'],
+                "device_id": device_id,
+                "device_name": device.name,
+                "timestamp": latest_data.get('timestamp'),
                 "voltage": latest_data.get('voltage', 0),
                 "current": latest_data.get('current', 0),
-                "power": latest_data.get('power', 0)
+                "power": latest_data.get('power', 0),
+                "pf": latest_data.get('pf', 1.0),
+                "frequency": latest_data.get('frequency', 50.0),
+                "energy": latest_data.get('energy', 0)
             }
         else:
-            # Data default jika koleksi kosong
             data = {
+                "device_id": device_id,
+                "device_name": device.name,
                 "timestamp": datetime.datetime.now().isoformat(),
                 "voltage": 0,
                 "current": 0,
-                "power": 0
+                "power": 0,
+                "pf": 1.0,
+                "frequency": 50.0,
+                "energy": 0,
+                "message": "No data available for this device"
             }
-            
         return JsonResponse(data)
-
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
-# monitoring_home tidak lagi diperlukan jika kita menggunakan React
-# Anda bisa menghapusnya atau membiarkannya
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def monitoring_history(request):
+    """
+    Get historical monitoring data based on time range for a specific device
+    
+    Query Parameters:
+        device_id (required): Device ID to get data for
+        range (optional): Time range - '1h', '6h', '24h', '7d' (default: '1h')
+    """
+    try:
+        device_id = request.GET.get('device_id')
+        
+        if not device_id:
+            return JsonResponse({
+                "error": "device_id parameter is required"
+            }, status=400)
+        
+        # Validate device ownership
+        try:
+            device = Device.objects.get(device_id=device_id, user=request.user)
+        except Device.DoesNotExist:
+            return JsonResponse({
+                "error": "Device not found or you do not have permission to access it"
+            }, status=403)
+        
+        time_range = request.GET.get('range', '1h')
+        collection = get_db_collection()
+        
+        now = datetime.datetime.now()
+        if time_range == '1h':
+            delta = datetime.timedelta(hours=1)
+        elif time_range == '6h':
+            delta = datetime.timedelta(hours=6)
+        elif time_range == '24h':
+            delta = datetime.timedelta(days=1)
+        elif time_range == '7d':
+            delta = datetime.timedelta(days=7)
+        else:
+            delta = datetime.timedelta(hours=1)
+            
+        start_time = now - delta
+        
+        cursor = collection.find({
+            "device_id": device_id,
+            "timestamp": {"$gte": start_time}
+        }).sort("timestamp", 1)
+        
+        history_data = []
+        for doc in cursor:
+            doc.pop('_id', None)
+            ts = doc.get('timestamp')
+            if isinstance(ts, datetime.datetime):
+                doc['timestamp'] = ts.isoformat()
+            history_data.append(doc)
+            
+        return JsonResponse({
+            "device_id": device_id,
+            "device_name": device.name,
+            "range": time_range,
+            "count": len(history_data),
+            "data": history_data
+        })
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
 def monitoring_home(request):
-    # Logika ini tidak akan digunakan oleh React, tapi kita biarkan saja
-    return JsonResponse({"message": "This is the monitoring home. Use /api/ to get data."})
+    return JsonResponse({
+        "message": "Power Monitoring API",
+        "endpoints": {
+            "/monitoring/api/": "Latest real-time data (requires device_id parameter)",
+            "/monitoring/history/": "Historical data with ?device_id=<id>&range=1h|6h|24h|7d",
+            "/monitoring/devices/": "Device management (list/create)",
+            "/monitoring/devices/<device_id>/": "Device detail (get/update/delete)"
+        }
+    })
