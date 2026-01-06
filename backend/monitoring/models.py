@@ -17,7 +17,7 @@ class Device(models.Model):
         max_length=100, 
         unique=True, 
         default=generate_device_id,
-        editable=False,
+        editable=True,
         help_text="Unique identifier for the device"
     )
     name = models.CharField(

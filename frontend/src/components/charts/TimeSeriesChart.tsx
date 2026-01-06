@@ -1,112 +1,102 @@
 import React from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 
 interface TimeSeriesChartProps {
-    data: Array<{ timestamp: string;[key: string]: any }>;
-    dataKey: string;
-    color: string;
-    label: string;
-    unit: string;
+  data: any[];
+  dataKey: string;
+  color?: string;
+  title?: string;
+  unit?: string;
 }
 
-const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
-    data,
-    dataKey,
-    color,
-    label,
-    unit
+const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({ 
+  data, 
+  dataKey, 
+  color = "#3b82f6", // Default blue modern
+  title,
+  unit 
 }) => {
-    // Format timestamp for display with date
-    const formatTime = (timestamp: string) => {
-        const date = new Date(timestamp);
-        const now = new Date();
-        const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-
-        if (diffDays === 0) {
-            // Today - show time only
-            return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-        } else if (diffDays < 7) {
-            // This week - show month and day
-            return date.toLocaleDateString('id-ID', { month: 'short', day: 'numeric' });
-        } else {
-            // Older - show date
-            return date.toLocaleDateString('id-ID', { month: 'short', day: 'numeric' });
-        }
-    };
-
-    // Custom tooltip with dark mode support
-    const CustomTooltip = ({ active, payload }: any) => {
-        if (active && payload && payload.length) {
-            return (
-                <div className="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700">
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">
-                        {new Date(payload[0].payload.timestamp).toLocaleDateString('id-ID', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        })}
-                    </p>
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                        {payload[0].value.toFixed(2)} {unit}
-                    </p>
-                </div>
-            );
-        }
-        return null;
-    };
-
-    // Create gradient ID based on color
-    const gradientId = `gradient-${dataKey}`;
-
-    return (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-all">
-            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 lowercase first-letter:uppercase">{label}</h3>
-            <ResponsiveContainer width="100%" height={250}>
-                <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor={color} stopOpacity={0.3} />
-                            <stop offset="95%" stopColor={color} stopOpacity={0.05} />
-                        </linearGradient>
-                    </defs>
-                    <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke="currentColor"
-                        className="text-slate-200 dark:text-slate-700"
-                        vertical={false}
-                    />
-                    <XAxis
-                        dataKey="timestamp"
-                        tickFormatter={formatTime}
-                        stroke="currentColor"
-                        className="text-slate-500 dark:text-slate-400"
-                        style={{ fontSize: '11px' }}
-                        tick={{ fill: 'currentColor' }}
-                        tickLine={false}
-                        axisLine={false}
-                    />
-                    <YAxis
-                        stroke="currentColor"
-                        className="text-slate-500 dark:text-slate-400"
-                        style={{ fontSize: '11px' }}
-                        tick={{ fill: 'currentColor' }}
-                        tickLine={false}
-                        axisLine={false}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Area
-                        type="monotone"
-                        dataKey={dataKey}
-                        stroke={color}
-                        strokeWidth={2.5}
-                        fill={`url(#${gradientId})`}
-                        activeDot={{ r: 5, fill: color, strokeWidth: 2, stroke: '#fff' }}
-                    />
-                </AreaChart>
-            </ResponsiveContainer>
-        </div>
-    );
+  return (
+    <div className="w-full h-full p-4 bg-white rounded-xl shadow-sm border border-gray-100">
+      {title && (
+        <h3 className="text-gray-600 font-semibold mb-4 text-sm uppercase tracking-wider">
+          {title}
+        </h3>
+      )}
+      <div style={{ width: '100%', height: 300 }}>
+        <ResponsiveContainer>
+          <AreaChart
+            data={data}
+            margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+          >
+            <defs>
+              <linearGradient id={`color${dataKey}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={color} stopOpacity={0.8}/>
+                <stop offset="95%" stopColor={color} stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+            <XAxis 
+              dataKey="timestamp" 
+              stroke="#9ca3af" 
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={(str) => {
+                try {
+                  const date = new Date(str);
+                  if (isNaN(date.getTime())) return str; // Fallback jika invalid date
+                  return `${date.getHours()}:${date.getMinutes() < 10 ? '0' : ''}${date.getMinutes()}`;
+                } catch (e) {
+                  return str;
+                }
+              }}
+            />
+            <YAxis 
+              stroke="#9ca3af" 
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+              unit={unit}
+            />
+            <Tooltip
+              contentStyle={{ 
+                backgroundColor: '#1f2937', 
+                border: 'none', 
+                borderRadius: '8px',
+                color: '#fff',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+              }}
+              itemStyle={{ color: '#fff' }}
+              labelStyle={{ color: '#9ca3af', marginBottom: '0.5rem' }}
+              // PERBAIKAN DI SINI: Menggunakan tipe 'any' untuk value agar kompatibel dengan Recharts
+              formatter={(value: any) => [
+                `${value !== undefined && value !== null ? value : '-'} ${unit || ''}`, 
+                dataKey
+              ]}
+            />
+            <Area
+              type="monotone"
+              dataKey={dataKey}
+              stroke={color}
+              strokeWidth={3}
+              fillOpacity={1}
+              fill={`url(#color${dataKey})`}
+              activeDot={{ r: 6, strokeWidth: 0 }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
 };
 
 export default TimeSeriesChart;

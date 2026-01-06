@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import { TrendingUp, Zap, DollarSign, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import ComparisonChart from '../components/charts/ComparisonChart';
+import { useDevice } from '../contexts/DeviceContext'; // <--- 1. Import useDevice
 
+// ... (Interface PredictionResult dan ResultCardProps biarkan sama) ...
 interface PredictionResult {
   predicted_power: number;
   rmse: number;
@@ -58,6 +61,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ title, value, subtitle, icon: I
 };
 
 const PredictionPage: React.FC = () => {
+  const { activeDevice } = useDevice(); // <--- 2. Ambil activeDevice dari Context
   const [selectedAlgo, setSelectedAlgo] = useState('rf');
   const [selectedMeter, setSelectedMeter] = useState('900VA');
   const [isLoading, setIsLoading] = useState(false);
@@ -78,24 +82,26 @@ const PredictionPage: React.FC = () => {
   ];
 
   const handleRunPrediction = async () => {
+    // <--- 3. Validasi jika tidak ada device yang aktif/dipilih
+    if (!activeDevice) {
+        setError("No active device selected. Please select a device from the top menu.");
+        return;
+    }
+
     setIsLoading(true);
     setError(null);
     setResult(null);
 
     try {
-      const response = await fetch(
-        `http://localhost:8000/prediction/run/?algo=${selectedAlgo}&meter_type=${selectedMeter}`
+      // <--- 4. Tambahkan device_id=${activeDevice.device_id} ke URL
+      const response = await axios.get(
+        `http://localhost:8000/prediction/run/?device_id=${activeDevice.device_id}&algo=${selectedAlgo}&meter_type=${selectedMeter}`
       );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch prediction');
-      }
-
-      const data: PredictionResult = await response.json();
-      setResult(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      setResult(response.data);
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.error || err.message || 'An unexpected error occurred';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -126,9 +132,15 @@ const PredictionPage: React.FC = () => {
       {/* Page Header */}
       <div>
         <h2 className="text-3xl font-bold text-slate-800 dark:text-white">Power Prediction & Cost Estimation</h2>
-        <p className="text-slate-600 dark:text-slate-400 mt-1">
-          Prediksi konsumsi daya dan estimasi biaya listrik menggunakan Machine Learning
-        </p>
+        <div className="flex items-center gap-2 mt-1">
+             <p className="text-slate-600 dark:text-slate-400">
+               Device: 
+             </p>
+             {/* Tampilkan nama device yang sedang aktif */}
+             <span className="font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded text-sm border border-blue-200 dark:border-blue-800">
+                {activeDevice ? activeDevice.name : 'No Device Selected'}
+             </span>
+        </div>
       </div>
 
       {/* Input Section */}
@@ -207,7 +219,7 @@ const PredictionPage: React.FC = () => {
         <div className="mt-6">
           <button
             onClick={handleRunPrediction}
-            disabled={isLoading}
+            disabled={isLoading || !activeDevice}
             className={cn(
               'w-full md:w-auto px-8 py-3 rounded-lg font-semibold text-white transition-all shadow-lg',
               'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700',
